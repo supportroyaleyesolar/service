@@ -438,7 +438,7 @@ var TC={
   wiring:{icon:'&#128268;',label:'Wiring',cls:'ti-wir'},
   general:{icon:'&#128295;',label:'General',cls:'ti-gen'}
 };
-var KS='res_svc_v4',KA='res_act_v4',KL='res_log_v4';
+var KS='res_svc_v4',KA='res_act_v4',KL='res_log_v4',KSS='res_seeded_v4';
 var CU=null,AF='all';
 
 function today(){return new Date().toISOString().slice(0,10)}
@@ -507,7 +507,12 @@ function checkSync(){
 function keepAlive(){var id=sessionStorage.getItem('eid');if(!id)return;try{var r=localStorage.getItem(KL)||'{}';var m=JSON.parse(r);m[id]=Date.now();localStorage.setItem(KL,JSON.stringify(m))}catch(e){}}
 
 function seed(){
-  if(lsSvc().length>0)return;
+  // Only seed ONCE ever — if the flag is set, do nothing.
+  // This prevents deleted services from restoring on refresh.
+  if(localStorage.getItem(KSS))return;
+  localStorage.setItem(KSS,'1');
+  // Also skip if data already exists or was initialized (even if all services were deleted)
+  if(localStorage.getItem(KS)!==null)return;
   var d=[
     {title:'Inverter Overheating Repair',location:'Plot 12, Sector 4, Nehru Nagar',type:'inverter',priority:'high',note:'Gets hot after 2 hrs'},
     {title:'Solar Panel Cleaning & Check',location:'House No. 45, Gandhi Colony',type:'panel',priority:'medium',note:'Annual maintenance due'},
