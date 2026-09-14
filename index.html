@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Royal Eye Solar — Service Tracker</title>
+  <meta name="description" content="Daily service tracking portal for Royal Eye Solar Power Company field technicians. Log in, claim service locations, and coordinate with your team in real time." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;600;700;900&display=swap" rel="stylesheet" />
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --solar-gold:#f5a623;--solar-amber:#ff8c00;--solar-yellow:#ffd700;
+      --accent-teal:#00d4b4;--accent-blue:#4f8ef7;--danger:#ff4d6d;
+      --success:#06d6a0;--warning:#ffd166;--purple:#a855f7;
+      --bg-dark:#0a0c14;--bg-card:rgba(255,255,255,0.05);--bg-card2:rgba(255,255,255,0.08);
+      --border:rgba(255,255,255,0.10);
+      --text-primary:#f0f4ff;--text-secondary:#8b95b2;--text-muted:#5a6180;
+      --radius-sm:8px;--radius:14px;--radius-lg:20px;--radius-xl:28px;
+      --shadow:0 8px 32px rgba(0,0,0,0.45);
+    }
+    html{scroll-behavior:smooth}
+    body{font-family:'Inter',sans-serif;background:var(--bg-dark);color:var(--text-primary);min-height:100vh;overflow-x:hidden}
+    body::before{content:'';position:fixed;inset:0;z-index:-1;
+      background:radial-gradient(ellipse 80% 50% at 20% -10%,rgba(245,166,35,0.12) 0%,transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 110%,rgba(0,212,180,0.08) 0%,transparent 60%),
+        radial-gradient(ellipse 40% 30% at 50% 50%,rgba(79,142,247,0.05) 0%,transparent 70%)}
+    ::-webkit-scrollbar{width:6px}
+    ::-webkit-scrollbar-thumb{background:rgba(245,166,35,0.4);border-radius:10px}
+
+    /* ── LOGIN ── */
+    #login-page{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}
+    .login-card{background:rgba(255,255,255,0.04);backdrop-filter:blur(24px);
+      border:1px solid rgba(245,166,35,0.20);border-radius:var(--radius-xl);
+      padding:48px 44px;width:100%;max-width:460px;
+      box-shadow:var(--shadow),0 0 30px rgba(245,166,35,0.3);animation:fadeUp 0.6s ease}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+    .brand{display:flex;align-items:center;gap:14px;margin-bottom:8px}
+    .brand-icon{width:52px;height:52px;
+      background:linear-gradient(135deg,var(--solar-gold),var(--solar-amber));
+      border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;
+      box-shadow:0 4px 20px rgba(245,166,35,0.5);animation:pglow 3s ease-in-out infinite}
+    @keyframes pglow{0%,100%{box-shadow:0 4px 20px rgba(245,166,35,0.5)}50%{box-shadow:0 4px 35px rgba(245,166,35,0.85)}}
+    .brand-text h1{font-family:'Outfit',sans-serif;font-size:20px;font-weight:700;
+      background:linear-gradient(90deg,var(--solar-gold),var(--solar-yellow));
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1.1}
+    .brand-text p{color:var(--text-secondary);font-size:12px;margin-top:2px}
+    .login-subtitle{color:var(--text-secondary);font-size:14px;margin-bottom:32px;margin-top:12px}
+    .form-group{margin-bottom:20px}
+    .form-group label{display:block;font-size:12px;font-weight:600;color:var(--text-secondary);
+      margin-bottom:8px;text-transform:uppercase;letter-spacing:0.8px}
+    .form-control{width:100%;padding:14px 16px;background:rgba(255,255,255,0.06);
+      border:1px solid var(--border);border-radius:var(--radius);color:var(--text-primary);
+      font-size:15px;font-family:'Inter',sans-serif;
+      transition:border-color .3s,box-shadow .3s,background .3s;outline:none;appearance:none}
+    .form-control:focus{border-color:var(--solar-gold);box-shadow:0 0 0 3px rgba(245,166,35,0.15);
+      background:rgba(255,255,255,0.09)}
+    .form-control option{background:#1a1e30}
+    .btn-login{width:100%;padding:15px;
+      background:linear-gradient(135deg,var(--solar-gold),var(--solar-amber));
+      border:none;border-radius:var(--radius);color:#fff;font-size:15px;font-weight:700;
+      font-family:'Inter',sans-serif;cursor:pointer;
+      transition:transform .2s,box-shadow .2s;
+      box-shadow:0 4px 20px rgba(245,166,35,0.5);margin-top:8px}
+    .btn-login:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(245,166,35,0.6)}
+    .login-demo-hint{margin-top:20px;padding:14px;background:rgba(0,212,180,0.06);
+      border:1px solid rgba(0,212,180,0.20);border-radius:var(--radius);
+      font-size:12px;color:var(--text-secondary);line-height:1.7}
+    .login-demo-hint strong{color:var(--accent-teal)}
+    .login-error{display:none;background:rgba(255,77,109,0.12);border:1px solid rgba(255,77,109,0.30);
+      border-radius:var(--radius-sm);padding:10px 14px;color:var(--danger);font-size:13px;margin-top:12px}
+
+    /* ── APP ── */
+    #app-page{display:none;min-height:100vh}
+    .topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 28px;
+      background:rgba(10,12,20,0.85);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);
+      position:sticky;top:0;z-index:100}
+    .topbar-brand{display:flex;align-items:center;gap:12px}
+    .mini-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--solar-gold),var(--solar-amber));
+      border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px}
+    .brand-name{font-family:'Outfit',sans-serif;font-weight:700;font-size:16px;
+      background:linear-gradient(90deg,var(--solar-gold),var(--solar-yellow));
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .topbar-right{display:flex;align-items:center;gap:14px}
+    .user-badge{display:flex;align-items:center;gap:10px;background:var(--bg-card2);
+      border:1px solid var(--border);border-radius:40px;padding:8px 16px 8px 8px}
+    .user-avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+      font-size:13px;font-weight:700;background:linear-gradient(135deg,var(--solar-gold),var(--solar-amber));color:#fff}
+    .user-name{font-size:13px;font-weight:600}
+    .user-role{font-size:11px;color:var(--text-secondary)}
+    .btn-logout{padding:8px 16px;background:rgba(255,77,109,0.12);border:1px solid rgba(255,77,109,0.25);
+      border-radius:40px;color:var(--danger);font-size:13px;font-weight:600;cursor:pointer;
+      transition:all .2s;font-family:'Inter',sans-serif}
+    .btn-logout:hover{background:rgba(255,77,109,0.22)}
+
+    .date-bar{display:flex;align-items:center;justify-content:space-between;padding:14px 28px;
+      border-bottom:1px solid var(--border);background:rgba(255,255,255,0.02);flex-wrap:wrap;gap:12px}
+    .date-display{display:flex;align-items:center;gap:10px}
+    .date-dot{width:10px;height:10px;border-radius:50%;background:var(--success);
+      box-shadow:0 0 8px var(--success);animation:blink 2s ease-in-out infinite}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+    .date-text{font-size:14px;font-weight:600}
+    .date-sub{font-size:12px;color:var(--text-secondary)}
+    .date-actions{display:flex;gap:10px;flex-wrap:wrap}
+    .btn-sm{padding:8px 16px;border-radius:40px;font-size:12px;font-weight:600;cursor:pointer;
+      font-family:'Inter',sans-serif;transition:all .2s;border:1px solid}
+    .btn-primary{background:linear-gradient(135deg,var(--solar-gold),var(--solar-amber));color:#fff;
+      border-color:transparent;box-shadow:0 2px 12px rgba(245,166,35,0.4)}
+    .btn-primary:hover{box-shadow:0 4px 20px rgba(245,166,35,0.6);transform:translateY(-1px)}
+    .btn-outline{background:transparent;border-color:var(--border);color:var(--text-secondary)}
+    .btn-outline:hover{border-color:var(--solar-gold);color:var(--solar-gold)}
+    .btn-danger-sm{background:rgba(255,77,109,0.12);border-color:rgba(255,77,109,0.3);color:var(--danger)}
+    .btn-danger-sm:hover{background:rgba(255,77,109,0.22)}
+
+    .app-layout{display:grid;grid-template-columns:1fr 320px;gap:0;min-height:calc(100vh - 120px)}
+    .services-panel{padding:28px;overflow-y:auto}
+    .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+    .section-title{font-family:'Outfit',sans-serif;font-size:20px;font-weight:700}
+    .section-sub{font-size:13px;color:var(--text-secondary);margin-top:2px}
+    .count-badges{display:flex;gap:8px;flex-wrap:wrap}
+    .count-badge{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+    .badge-total{background:rgba(255,255,255,0.08);color:var(--text-secondary)}
+    .badge-open{background:rgba(79,142,247,0.15);color:var(--accent-blue)}
+    .badge-claimed{background:rgba(245,166,35,0.15);color:var(--solar-gold)}
+    .badge-done{background:rgba(6,214,160,0.15);color:var(--success)}
+
+    .filter-tabs{display:flex;gap:8px;margin-bottom:20px;background:rgba(255,255,255,0.03);
+      border:1px solid var(--border);border-radius:40px;padding:4px;width:fit-content;flex-wrap:wrap}
+    .filter-tab{padding:7px 18px;border-radius:36px;font-size:12px;font-weight:600;cursor:pointer;
+      color:var(--text-secondary);transition:all .2s;border:none;background:transparent;font-family:'Inter',sans-serif}
+    .filter-tab.active{background:linear-gradient(135deg,var(--solar-gold),var(--solar-amber));color:#fff}
+    .filter-tab:hover:not(.active){color:var(--text-primary)}
+
+    .services-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(275px,1fr));gap:16px}
+    .service-card{background:var(--bg-card);backdrop-filter:blur(12px);border:1px solid var(--border);
+      border-radius:var(--radius-lg);padding:20px;
+      transition:transform .2s,box-shadow .2s,border-color .3s;
+      animation:fadeCard .4s ease;position:relative;overflow:hidden}
+    @keyframes fadeCard{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    .service-card:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
+    .service-card.st-open{border-color:rgba(79,142,247,0.30)}
+    .service-card.st-claimed{border-color:rgba(245,166,35,0.40)}
+    .service-card.st-done{border-color:rgba(6,214,160,0.30)}
+    .service-card.st-claimed::before,.service-card.st-done::before{
+      content:'';position:absolute;top:0;left:0;right:0;height:3px}
+    .service-card.st-claimed::before{background:linear-gradient(90deg,var(--solar-gold),var(--solar-amber))}
+    .service-card.st-done::before{background:linear-gradient(90deg,var(--success),var(--accent-teal))}
+    .card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;gap:10px}
+    .type-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+    .ti-inv{background:rgba(79,142,247,0.15)}.ti-pan{background:rgba(245,166,35,0.15)}
+    .ti-bat{background:rgba(6,214,160,0.15)}.ti-wir{background:rgba(168,85,247,0.15)}.ti-gen{background:rgba(255,209,102,0.15)}
+    .status-pill{padding:4px 10px;border-radius:20px;font-size:10px;font-weight:700;
+      text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+    .sp-open{background:rgba(79,142,247,0.15);color:var(--accent-blue);border:1px solid rgba(79,142,247,0.3)}
+    .sp-claimed{background:rgba(245,166,35,0.15);color:var(--solar-gold);border:1px solid rgba(245,166,35,0.35)}
+    .sp-done{background:rgba(6,214,160,0.15);color:var(--success);border:1px solid rgba(6,214,160,0.3)}
+    .svc-title{font-size:15px;font-weight:700;margin-bottom:4px}
+    .svc-loc{font-size:13px;color:var(--text-secondary)}
+    .svc-loc::before{content:'📍 '}
+    .svc-meta{display:flex;gap:8px;margin:12px 0;flex-wrap:wrap}
+    .meta-chip{padding:4px 10px;border-radius:20px;background:rgba(255,255,255,0.05);
+      font-size:11px;color:var(--text-secondary)}
+    .ph{color:var(--danger)}.pm{color:var(--solar-gold)}.pl{color:var(--success)}
+    .assigned-box{margin:12px 0;padding:10px 14px;border-radius:var(--radius-sm);
+      background:rgba(245,166,35,0.08);border:1px solid rgba(245,166,35,0.20);font-size:12px}
+    .asgn-lbl{color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
+    .asgn-name{font-weight:700;color:var(--solar-gold)}
+    .asgn-time{color:var(--text-muted);font-size:11px}
+    .card-actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+    .btn-punch{flex:1;padding:10px 14px;
+      background:linear-gradient(135deg,var(--solar-gold),var(--solar-amber));
+      border:none;border-radius:var(--radius-sm);color:#fff;font-size:13px;font-weight:700;cursor:pointer;
+      transition:all .2s;font-family:'Inter',sans-serif;box-shadow:0 2px 12px rgba(245,166,35,0.4)}
+    .btn-punch:hover{transform:translateY(-1px);box-shadow:0 4px 18px rgba(245,166,35,0.6)}
+    .btn-complete{flex:1;padding:10px 14px;background:rgba(6,214,160,0.12);
+      border:1px solid rgba(6,214,160,0.30);border-radius:var(--radius-sm);color:var(--success);
+      font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;font-family:'Inter',sans-serif}
+    .btn-complete:hover{background:rgba(6,214,160,0.22)}
+    .btn-release{padding:10px 14px;background:rgba(255,77,109,0.10);border:1px solid rgba(255,77,109,0.25);
+      border-radius:var(--radius-sm);color:var(--danger);font-size:12px;font-weight:600;cursor:pointer;
+      transition:all .2s;font-family:'Inter',sans-serif}
+    .btn-release:hover{background:rgba(255,77,109,0.20)}
+    .btn-disabled{flex:1;padding:10px 14px;background:rgba(255,255,255,0.04);border:1px solid var(--border);
+      border-radius:var(--radius-sm);color:var(--text-muted);font-size:13px;font-weight:600;cursor:not-allowed;font-family:'Inter',sans-serif}
+    .btn-del{padding:10px 14px;background:rgba(255,77,109,0.08);border:1px solid rgba(255,77,109,0.25);
+      border-radius:var(--radius-sm);color:var(--danger);font-size:14px;cursor:pointer;
+      transition:all .2s;font-family:'Inter',sans-serif;display:inline-flex;align-items:center;justify-content:center}
+    .btn-del:hover{background:rgba(255,77,109,0.22);border-color:var(--danger);transform:scale(1.05)}
+
+    /* ── SIDEBAR ── */
+    .sidebar{border-left:1px solid var(--border);padding:24px 20px;background:rgba(255,255,255,0.01);overflow-y:auto}
+    .s-section{margin-bottom:28px}
+    .s-title{font-size:12px;font-weight:700;color:var(--text-secondary);text-transform:uppercase;
+      letter-spacing:1px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+    .s-title::after{content:'';flex:1;height:1px;background:var(--border)}
+    .emp-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);
+      padding:14px;margin-bottom:10px;display:flex;align-items:center;gap:12px;transition:all .3s}
+    .emp-card.ec-active{border-color:rgba(6,214,160,0.30)}
+    .emp-card.ec-busy{border-color:rgba(245,166,35,0.30)}
+    .emp-card.ec-offline{opacity:.5}
+    .emp-av{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+      font-size:14px;font-weight:700;flex-shrink:0;position:relative}
+    .emp-av::after{content:'';position:absolute;bottom:1px;right:1px;width:10px;height:10px;
+      border-radius:50%;border:2px solid var(--bg-dark)}
+    .ea-on::after{background:var(--success)}.ea-busy::after{background:var(--solar-gold)}.ea-off::after{background:var(--text-muted)}
+    .emp-info{flex:1;min-width:0}
+    .emp-name{font-size:13px;font-weight:700}
+    .emp-status{font-size:11px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .emp-status.working{color:var(--solar-gold)}
+    .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .stat-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;text-align:center}
+    .stat-num{font-family:'Outfit',sans-serif;font-size:28px;font-weight:900}
+    .stat-lbl{font-size:11px;color:var(--text-secondary);margin-top:2px}
+    .c-gold{color:var(--solar-gold)}.c-blue{color:var(--accent-blue)}.c-green{color:var(--success)}.c-purple{color:var(--purple)}
+    .act-log{max-height:280px;overflow-y:auto}
+    .act-item{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);animation:fadeIn .3s ease}
+    @keyframes fadeIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
+    .act-icon{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+    .ai-punch{background:rgba(245,166,35,0.15)}.ai-complete{background:rgba(6,214,160,0.15)}
+    .ai-release{background:rgba(255,77,109,0.12)}.ai-add{background:rgba(79,142,247,0.15)}
+    .act-text{font-size:12px;color:var(--text-secondary);flex:1}
+    .act-text strong{color:var(--text-primary);font-weight:600}
+    .act-time{font-size:10px;color:var(--text-muted);margin-top:2px}
+
+    /* ── MODAL ── */
+    .modal-ov{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.75);
+      backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:24px}
+    .modal-ov.open{display:flex}
+    .modal-card{background:#0f1120;border:1px solid rgba(245,166,35,0.25);border-radius:var(--radius-xl);
+      padding:36px 32px;width:100%;max-width:480px;
+      box-shadow:var(--shadow),0 0 30px rgba(245,166,35,0.3);
+      animation:mIn .35s cubic-bezier(.34,1.56,.64,1)}
+    @keyframes mIn{from{opacity:0;transform:scale(0.88) translateY(20px)}to{opacity:1;transform:scale(1) translateY(0)}}
+    .modal-title{font-family:'Outfit',sans-serif;font-size:22px;font-weight:700;margin-bottom:6px}
+    .modal-sub{font-size:13px;color:var(--text-secondary);margin-bottom:24px}
+    .modal-acts{display:flex;gap:10px;margin-top:20px}
+    .btn-cancel{flex:1;padding:12px;background:rgba(255,255,255,0.05);border:1px solid var(--border);
+      border-radius:var(--radius);color:var(--text-secondary);font-size:14px;font-weight:600;cursor:pointer;
+      font-family:'Inter',sans-serif;transition:all .2s}
+    .btn-cancel:hover{background:rgba(255,255,255,0.09)}
+    .btn-add-svc{flex:1;padding:12px;background:linear-gradient(135deg,var(--solar-gold),var(--solar-amber));
+      border:none;border-radius:var(--radius);color:#fff;font-size:14px;font-weight:700;cursor:pointer;
+      font-family:'Inter',sans-serif;box-shadow:0 4px 16px rgba(245,166,35,0.4);transition:all .2s}
+    .btn-add-svc:hover{box-shadow:0 6px 24px rgba(245,166,35,0.6)}
+
+    /* ── TOAST ── */
+    .toast-wrap{position:fixed;bottom:28px;right:28px;z-index:999;display:flex;flex-direction:column;gap:10px}
+    .toast{background:rgba(15,17,32,0.96);backdrop-filter:blur(16px);border-radius:var(--radius);
+      padding:14px 18px;border-left:4px solid;box-shadow:var(--shadow);font-size:13px;max-width:320px;
+      animation:toastIn .3s ease;display:flex;align-items:center;gap:10px}
+    @keyframes toastIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+    .toast.success{border-color:var(--success)}.toast.warning{border-color:var(--solar-gold)}
+    .toast.error{border-color:var(--danger)}.toast.info{border-color:var(--accent-blue)}
+
+    .empty-state{text-align:center;padding:60px 20px;color:var(--text-muted);grid-column:1/-1}
+    .empty-state .ei{font-size:56px;margin-bottom:16px}
+    .empty-state h3{font-size:18px;color:var(--text-secondary);margin-bottom:8px}
+
+    @media(max-width:900px){.app-layout{grid-template-columns:1fr}.sidebar{border-left:none;border-top:1px solid var(--border)}}
+    @media(max-width:600px){.topbar{padding:12px 16px}.date-bar{padding:10px 16px}.services-panel{padding:16px}
+      .login-card{padding:32px 24px}.services-grid{grid-template-columns:1fr}.brand-name{display:none}}
+  </style>
+</head>
+<body>
+
+<!-- ══ LOGIN ══ -->
+<section id="login-page">
+  <div class="login-card">
+    <div class="brand">
+      <div class="brand-icon">&#9728;&#65039;</div>
+      <div class="brand-text">
+        <h1>Royal Eye Solar</h1>
+        <p>Power Company &mdash; Service Portal</p>
+      </div>
+    </div>
+    <p class="login-subtitle">Sign in to access daily service assignments and track your team&rsquo;s live locations.</p>
+    <div class="form-group">
+      <label for="emp-select">Select Your Name</label>
+      <select class="form-control" id="emp-select">
+        <option value="">&#8212; Choose Employee &#8212;</option>
+        <option value="1">Arjun Kumar (Technician)</option>
+        <option value="2">Rahul Singh (Technician)</option>
+        <option value="3">Suresh Patel (Senior Tech)</option>
+        <option value="4">Vikram Rao (Technician)</option>
+        <option value="5">Mohan Das (Lead Tech)</option>
+        <option value="admin">Admin (Manager)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="pin-input">PIN Code</label>
+      <input type="password" class="form-control" id="pin-input"
+             placeholder="Enter your 4-digit PIN" maxlength="4" inputmode="numeric" />
+    </div>
+    <button class="btn-login" id="login-btn" onclick="doLogin()">&#128272; Sign In to Portal</button>
+    <div class="login-error" id="login-error">&#9888;&#65039; Incorrect PIN. Please try again.</div>
+  </div>
+</section>
+
+<!-- ══ APP ══ -->
+<div id="app-page">
+  <header class="topbar">
+    <div class="topbar-brand">
+      <div class="mini-icon">&#9728;&#65039;</div>
+      <span class="brand-name">Royal Eye Solar &mdash; Service Tracker</span>
+    </div>
+    <div class="topbar-right">
+      <div class="user-badge">
+        <div class="user-avatar" id="top-av">A</div>
+        <div>
+          <div class="user-name" id="top-name">Employee</div>
+          <div class="user-role" id="top-role">Technician</div>
+        </div>
+      </div>
+      <button class="btn-logout" onclick="doLogout()">Sign Out</button>
+    </div>
+  </header>
+
+  <div class="date-bar">
+    <div class="date-display">
+      <div class="date-dot"></div>
+      <div>
+        <div class="date-text" id="date-display">&#8212;</div>
+        <div class="date-sub">Today&rsquo;s Service Schedule &mdash; Live Tracking Active</div>
+      </div>
+    </div>
+    <div class="date-actions">
+      <button class="btn-sm btn-primary" onclick="openModal()">&#43; Add Service</button>
+      <button class="btn-sm btn-outline" onclick="refreshAll()">&#128260; Refresh</button>
+      <button class="btn-sm btn-danger-sm" id="reset-btn" onclick="resetDay()" style="display:none">&#128465; Reset Day</button>
+    </div>
+  </div>
+
+  <div class="app-layout">
+    <!-- Services -->
+    <main class="services-panel">
+      <div class="section-header">
+        <div>
+          <div class="section-title">&#128203; Today&rsquo;s Service Jobs</div>
+          <div class="section-sub">Tap <strong>Punch In</strong> to claim a job &mdash; your team sees you&rsquo;re on it instantly</div>
+        </div>
+        <div class="count-badges" id="count-badges"></div>
+      </div>
+      <div class="filter-tabs">
+        <button class="filter-tab active" onclick="setFilter('all',this)">All Jobs</button>
+        <button class="filter-tab" onclick="setFilter('open',this)">&#128309; Open</button>
+        <button class="filter-tab" onclick="setFilter('claimed',this)">&#128992; In Progress</button>
+        <button class="filter-tab" onclick="setFilter('done',this)">&#128994; Completed</button>
+        <button class="filter-tab" onclick="setFilter('mine',this)">&#11088; My Jobs</button>
+      </div>
+      <div class="services-grid" id="services-grid"></div>
+    </main>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="s-section">
+        <div class="s-title">&#128202; Today&rsquo;s Stats</div>
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-num c-blue" id="s-total">0</div><div class="stat-lbl">Total Jobs</div></div>
+          <div class="stat-card"><div class="stat-num c-gold" id="s-active">0</div><div class="stat-lbl">In Progress</div></div>
+          <div class="stat-card"><div class="stat-num c-green" id="s-done">0</div><div class="stat-lbl">Completed</div></div>
+          <div class="stat-card"><div class="stat-num c-purple" id="s-open">0</div><div class="stat-lbl">Pending</div></div>
+        </div>
+      </div>
+      <div class="s-section">
+        <div class="s-title">&#128101; Team Status</div>
+        <div id="emp-list"></div>
+      </div>
+      <div class="s-section">
+        <div class="s-title">&#9889; Live Activity</div>
+        <div class="act-log" id="act-log">
+          <p style="color:var(--text-muted);font-size:12px;padding:8px 0">No activity yet today&hellip;</p>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- ══ MODAL ══ -->
+<div class="modal-ov" id="add-modal">
+  <div class="modal-card">
+    <div class="modal-title">&#43; Add New Service Job</div>
+    <div class="modal-sub">Fill in the job details to add it to today&rsquo;s tracking board.</div>
+    <div class="form-group">
+      <label for="m-title">Service Title</label>
+      <input type="text" class="form-control" id="m-title" placeholder="e.g. Inverter Fault Repair" />
+    </div>
+    <div class="form-group">
+      <label for="m-loc">Location / Address</label>
+      <input type="text" class="form-control" id="m-loc" placeholder="e.g. Sector 12, Block B, House 34" />
+    </div>
+    <div class="form-group" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div>
+        <label for="m-type">Service Type</label>
+        <select class="form-control" id="m-type">
+          <option value="inverter">&#9889; Inverter</option>
+          <option value="panel">&#128262; Solar Panel</option>
+          <option value="battery">&#128267; Battery</option>
+          <option value="wiring">&#128268; Wiring</option>
+          <option value="general">&#128295; General</option>
+        </select>
+      </div>
+      <div>
+        <label for="m-pri">Priority</label>
+        <select class="form-control" id="m-pri">
+          <option value="high">&#128308; High</option>
+          <option value="medium" selected>&#128992; Medium</option>
+          <option value="low">&#128994; Low</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="m-note">Notes (Optional)</label>
+      <input type="text" class="form-control" id="m-note" placeholder="Customer complaint or additional info&hellip;" />
+    </div>
+    <div class="modal-acts">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-add-svc" onclick="addService()">&#9989; Add Job</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toasts"></div>
+
+<script>
+var EMP={
+  '1':{name:'Arjun Kumar',role:'Technician',color:'#f5a623'},
+  '2':{name:'Rahul Singh',role:'Technician',color:'#4f8ef7'},
+  '3':{name:'Suresh Patel',role:'Senior Tech',color:'#a855f7'},
+  '4':{name:'Vikram Rao',role:'Technician',color:'#06d6a0'},
+  '5':{name:'Mohan Das',role:'Lead Tech',color:'#ff8c00'},
+  'admin':{name:'Admin',role:'Manager',color:'#ff4d6d'}
+};
+var PINS={'1':'1234','2':'1234','3':'1234','4':'1234','5':'1234','admin':'0000'};
+var TC={
+  inverter:{icon:'&#9889;',label:'Inverter',cls:'ti-inv'},
+  panel:{icon:'&#128262;',label:'Solar Panel',cls:'ti-pan'},
+  battery:{icon:'&#128267;',label:'Battery',cls:'ti-bat'},
+  wiring:{icon:'&#128268;',label:'Wiring',cls:'ti-wir'},
+  general:{icon:'&#128295;',label:'General',cls:'ti-gen'}
+};
+var KS='res_svc_v4',KA='res_act_v4',KL='res_log_v4';
+var CU=null,AF='all';
+
+function today(){return new Date().toISOString().slice(0,10)}
+function fmtTime(ts){if(!ts)return'';return new Date(ts).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}
+function fmtDate(d){return new Date(d+'T00:00:00').toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+
+function lsSvc(){try{var r=localStorage.getItem(KS);return r?JSON.parse(r):[]}catch(e){return[]}}
+function svSvc(a){try{localStorage.setItem(KS,JSON.stringify(a))}catch(e){}}
+function lsAct(){try{var r=localStorage.getItem(KA);return r?JSON.parse(r):[]}catch(e){return[]}}
+function pushAct(t,m){try{var r=localStorage.getItem(KA);var a=r?JSON.parse(r):[];a.unshift({id:uid(),date:today(),type:t,msg:m,ts:Date.now()});localStorage.setItem(KA,JSON.stringify(a.slice(0,200)))}catch(e){}}
+function getEmp(){var id=sessionStorage.getItem('eid');return id&&EMP[id]?Object.assign({id:id},EMP[id]):null}
+function setEmp(id){sessionStorage.setItem('eid',id);try{var r=localStorage.getItem(KL)||'{}';var m=JSON.parse(r);m[id]=Date.now();localStorage.setItem(KL,JSON.stringify(m))}catch(e){}}
+function clrEmp(){var id=sessionStorage.getItem('eid');if(id){try{var r=localStorage.getItem(KL)||'{}';var m=JSON.parse(r);delete m[id];localStorage.setItem(KL,JSON.stringify(m))}catch(e){}}sessionStorage.removeItem('eid')}
+function onlineEmps(){try{var r=localStorage.getItem(KL)||'{}';var m=JSON.parse(r);var c=Date.now()-5*60*1000;return Object.keys(m).filter(function(id){return m[id]>c})}catch(e){return[]}}
+
+function doLogin(){
+  var id=document.getElementById('emp-select').value;
+  var pin=document.getElementById('pin-input').value;
+  var er=document.getElementById('login-error');er.style.display='none';
+  if(!id){er.textContent='Please select your name.';er.style.display='block';return}
+  if(PINS[id]!==pin){er.textContent='Incorrect PIN. Try again.';er.style.display='block';return}
+  setEmp(id);CU=Object.assign({id:id},EMP[id]);initApp();
+}
+function doLogout(){
+  clrEmp();CU=null;
+  document.getElementById('login-page').style.display='flex';
+  document.getElementById('app-page').style.display='none';
+  document.getElementById('emp-select').value='';
+  document.getElementById('pin-input').value='';
+}
+document.getElementById('pin-input').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin()});
+
+function initApp(){
+  document.getElementById('login-page').style.display='none';
+  document.getElementById('app-page').style.display='block';
+  document.getElementById('top-av').textContent=CU.name.charAt(0);
+  document.getElementById('top-av').style.background='linear-gradient(135deg,'+CU.color+','+CU.color+'88)';
+  document.getElementById('top-name').textContent=CU.name;
+  document.getElementById('top-role').textContent=CU.role;
+  document.getElementById('reset-btn').style.display=CU.id==='admin'?'block':'none';
+  seed();renderAll();keepAlive();
+  setInterval(checkSync, 1500);
+  setInterval(keepAlive, 25000);
+}
+var _lastSvc = '', _lastAct = '', _lastEmp = '';
+function checkSync(){
+  var s = localStorage.getItem(KS) || '';
+  if(s !== _lastSvc){
+    _lastSvc = s;
+    drawStats();
+    drawSvcs();
+    drawEmps();
+  }
+  var a = localStorage.getItem(KA) || '';
+  if(a !== _lastAct){
+    _lastAct = a;
+    drawAct();
+  }
+  var e = onlineEmps().sort().join(',');
+  if(e !== _lastEmp){
+    _lastEmp = e;
+    drawEmps();
+  }
+}
+function keepAlive(){var id=sessionStorage.getItem('eid');if(!id)return;try{var r=localStorage.getItem(KL)||'{}';var m=JSON.parse(r);m[id]=Date.now();localStorage.setItem(KL,JSON.stringify(m))}catch(e){}}
+
+function seed(){
+  if(lsSvc().length>0)return;
+  var d=[
+    {title:'Inverter Overheating Repair',location:'Plot 12, Sector 4, Nehru Nagar',type:'inverter',priority:'high',note:'Gets hot after 2 hrs'},
+    {title:'Solar Panel Cleaning & Check',location:'House No. 45, Gandhi Colony',type:'panel',priority:'medium',note:'Annual maintenance due'},
+    {title:'Battery Replacement',location:'Villa 7, Green Park Extension',type:'battery',priority:'high',note:'12V not holding charge'},
+    {title:'Wiring Fault - Short Circuit',location:'Flat 301, Sunrise Apartments',type:'wiring',priority:'high',note:'Sparks near board reported'},
+    {title:'Panel Output Low - Inspection',location:'Shop No. 8, Main Market Road',type:'panel',priority:'medium',note:'Output dropped 40%'},
+    {title:'Inverter Display Not Working',location:'H.No. 22, Behind Bus Stand',type:'inverter',priority:'low',note:'LCD shows error code E5'},
+    {title:'New Battery Bank Setup',location:'Factory Gate, Industrial Area B',type:'battery',priority:'medium',note:'48V system - 4 batteries'},
+    {title:'Monthly System Health Check',location:'Bungalow 3, Civil Lines',type:'general',priority:'low',note:'AMC monthly checkup'}
+  ];
+  svSvc(d.map(function(x){return Object.assign({id:uid(),date:today(),status:'open',claimedBy:null,claimedAt:null,doneAt:null},x)}));
+}
+
+function renderAll(){
+  _lastSvc = localStorage.getItem(KS) || '';
+  _lastAct = localStorage.getItem(KA) || '';
+  _lastEmp = onlineEmps().sort().join(',');
+  drawStats();drawSvcs();drawEmps();drawAct();
+}
+
+function drawStats(){
+  var a=lsSvc();
+  var tot=a.length,act=a.filter(function(s){return s.status==='claimed'}).length,
+      dn=a.filter(function(s){return s.status==='done'}).length,op=a.filter(function(s){return s.status==='open'}).length;
+  document.getElementById('s-total').textContent=tot;
+  document.getElementById('s-active').textContent=act;
+  document.getElementById('s-done').textContent=dn;
+  document.getElementById('s-open').textContent=op;
+  document.getElementById('count-badges').innerHTML=
+    '<span class="count-badge badge-total">'+tot+' Total</span>'+
+    '<span class="count-badge badge-open">'+op+' Open</span>'+
+    '<span class="count-badge badge-claimed">'+act+' Active</span>'+
+    '<span class="count-badge badge-done">'+dn+' Done</span>';
+}
+
+function setFilter(f,el){AF=f;document.querySelectorAll('.filter-tab').forEach(function(t){t.classList.remove('active')});el.classList.add('active');drawSvcs()}
+
+function drawSvcs(){
+  var a=lsSvc();
+  if(AF==='open')a=a.filter(function(s){return s.status==='open'});
+  else if(AF==='claimed')a=a.filter(function(s){return s.status==='claimed'});
+  else if(AF==='done')a=a.filter(function(s){return s.status==='done'});
+  else if(AF==='mine')a=a.filter(function(s){return s.claimedBy===CU.id});
+  var g=document.getElementById('services-grid');
+  if(!a.length){g.innerHTML='<div class="empty-state"><div class="ei">&#128269;</div><h3>No jobs found</h3><p>'+(AF==='mine'?'You have not claimed any jobs yet.':'No jobs match this filter.')+'</p></div>';return}
+  g.innerHTML=a.map(buildCard).join('');
+}
+
+function buildCard(s){
+  var tc=TC[s.type]||TC.general,iM=s.claimedBy===CU.id,isA=CU.id==='admin';
+  var sp='',sc='';
+  if(s.status==='open'){sp='<span class="status-pill sp-open">Open</span>';sc='st-open'}
+  if(s.status==='claimed'){sp='<span class="status-pill sp-claimed">In Progress</span>';sc='st-claimed'}
+  if(s.status==='done'){sp='<span class="status-pill sp-done">Completed</span>';sc='st-done'}
+  var pm={high:'&#128308; High',medium:'&#128992; Medium',low:'&#128994; Low'};
+  var pc={high:'ph',medium:'pm',low:'pl'};
+  var abox='';
+  if(s.claimedBy&&EMP[s.claimedBy]){
+    var e=EMP[s.claimedBy];
+    abox='<div class="assigned-box"><div class="asgn-lbl">Assigned To</div>'+
+      '<div class="asgn-name">'+e.name+(iM?' (You)':'')+'</div>'+
+      '<div class="asgn-time">Since '+fmtTime(s.claimedAt)+'</div></div>';
+  }
+  var delBtn=isA?'<button class="btn-del" onclick="deleteJob(\''+s.id+'\')" title="Admin: Delete service permanently">&#128465;&#65039;</button>':'';
+  var acts='';
+  if(s.status==='open'){acts='<button class="btn-punch" onclick="punchIn(\''+s.id+'\')">&#9889; Punch In &mdash; Claim This Job</button>'+delBtn}
+  else if(s.status==='claimed'){
+    if(iM){acts='<button class="btn-complete" onclick="markDone(\''+s.id+'\')">&#9989; Mark Complete</button><button class="btn-release" onclick="releaseJob(\''+s.id+'\')">&#8617; Release</button>'+delBtn}
+    else if(isA){acts='<button class="btn-release" onclick="releaseJob(\''+s.id+'\')">&#8617; Admin Release</button>'+delBtn}
+    else{var en=EMP[s.claimedBy]||{};acts='<button class="btn-disabled" disabled>&#128274; Taken by '+(en.name||'teammate')+'</button>'}
+  }else{
+    if(iM||isA){acts='<button class="btn-release" onclick="reopenJob(\''+s.id+'\')">&#128260; Reopen</button>'+delBtn}
+    else{acts='<button class="btn-disabled" disabled>&#9989; Job Completed</button>'+delBtn}
+  }
+  return '<div class="service-card '+sc+'">'+
+    '<div class="card-top"><div class="type-icon '+tc.cls+'">'+tc.icon+'</div>'+sp+'</div>'+
+    '<div class="svc-title">'+s.title+'</div>'+
+    '<div class="svc-loc">'+s.location+'</div>'+
+    '<div class="svc-meta"><span class="meta-chip">'+tc.label+'</span>'+
+    '<span class="meta-chip '+(pc[s.priority]||'pm')+'">'+( pm[s.priority]||'Medium')+'</span>'+
+    '<span class="meta-chip">&#128197; '+(s.date||'Active')+'</span>'+
+    (s.note?'<span class="meta-chip">'+s.note.slice(0,28)+(s.note.length>28?'&hellip;':'')+'</span>':'')+'</div>'+
+    abox+'<div class="card-actions">'+acts+'</div></div>';
+}
+
+function deleteJob(id){
+  if(!CU||CU.id!=='admin'){
+    toast('Permission denied: Only Admin can delete service records!','error');
+    return;
+  }
+  var a=lsSvc(),s=a.find(function(x){return x.id===id});
+  if(!s)return;
+  if(!confirm('Admin Action: Permanently delete this service?\n\n"'+s.title+'" at '+s.location+'\n\nThis record will be permanently erased.'))return;
+  a=a.filter(function(x){return x.id!==id});
+  svSvc(a);
+  pushAct('release','<strong>Admin ('+CU.name+')</strong> deleted: '+s.title);
+  toast('Service permanently deleted by Admin','warning');renderAll();
+}
+
+function punchIn(id){
+  var a=lsSvc(),i=a.findIndex(function(s){return s.id===id});
+  if(i<0){toast('Job not found!','error');return}
+  if(a[i].status!=='open'){toast('This job was just claimed!','warning');renderAll();return}
+  a[i].status='claimed';a[i].claimedBy=CU.id;a[i].claimedAt=Date.now();
+  svSvc(a);pushAct('punch','<strong>'+CU.name+'</strong> punched in for: '+a[i].title);
+  toast('You claimed: '+a[i].title,'success');renderAll();
+}
+function markDone(id){
+  var a=lsSvc(),i=a.findIndex(function(s){return s.id===id});if(i<0)return;
+  a[i].status='done';a[i].doneAt=Date.now();svSvc(a);
+  pushAct('complete','<strong>'+CU.name+'</strong> completed: '+a[i].title);
+  toast('Completed: '+a[i].title,'success');renderAll();
+}
+function releaseJob(id){
+  var a=lsSvc(),i=a.findIndex(function(s){return s.id===id});if(i<0)return;
+  var t=a[i].title;a[i].status='open';a[i].claimedBy=null;a[i].claimedAt=null;svSvc(a);
+  pushAct('release','<strong>'+CU.name+'</strong> released: '+t);
+  toast('Released: '+t,'warning');renderAll();
+}
+function reopenJob(id){
+  var a=lsSvc(),i=a.findIndex(function(s){return s.id===id});if(i<0)return;
+  a[i].status='open';a[i].claimedBy=null;a[i].claimedAt=null;a[i].doneAt=null;svSvc(a);
+  pushAct('release','<strong>'+CU.name+'</strong> reopened: '+a[i].title);
+  toast('Job reopened','info');renderAll();
+}
+
+function drawEmps(){
+  var svcs=lsSvc(),on=onlineEmps(),el=document.getElementById('emp-list');
+  el.innerHTML=['1','2','3','4','5'].map(function(id){
+    var e=EMP[id],isOn=on.indexOf(id)>=0;
+    var job=svcs.find(function(s){return s.claimedBy===id&&s.status==='claimed'});
+    var ec=isOn?(job?'ec-busy':'ec-active'):'ec-offline';
+    var ac=isOn?(job?'ea-busy':'ea-on'):'ea-off';
+    var st=isOn?(job?'Working: '+job.title.slice(0,20)+'&hellip;':'Available'):'Offline';
+    var wc=isOn&&job?'working':'';
+    return '<div class="emp-card '+ec+'">'+
+      '<div class="emp-av '+ac+'" style="background:linear-gradient(135deg,'+e.color+','+e.color+'88)">'+e.name.charAt(0)+'</div>'+
+      '<div class="emp-info"><div class="emp-name">'+e.name+'</div>'+
+      '<div class="emp-status '+wc+'">'+st+'</div></div></div>';
+  }).join('');
+}
+
+function drawAct(){
+  var acts=lsAct(),el=document.getElementById('act-log');
+  if(!acts.length){el.innerHTML='<p style="color:var(--text-muted);font-size:12px;padding:8px 0">No activity yet today&hellip;</p>';return}
+  var im={punch:{i:'&#9889;',c:'ai-punch'},complete:{i:'&#9989;',c:'ai-complete'},release:{i:'&#8617;',c:'ai-release'},add:{i:'&#43;',c:'ai-add'}};
+  el.innerHTML=acts.slice(0,20).map(function(a){
+    var t=im[a.type]||im.add;
+    return '<div class="act-item"><div class="act-icon '+t.c+'">'+t.i+'</div>'+
+      '<div><div class="act-text">'+a.msg+'</div><div class="act-time">'+fmtTime(a.ts)+'</div></div></div>';
+  }).join('');
+}
+
+function openModal(){document.getElementById('add-modal').classList.add('open')}
+function closeModal(){document.getElementById('add-modal').classList.remove('open')}
+document.getElementById('add-modal').addEventListener('click',function(e){if(e.target===e.currentTarget)closeModal()});
+
+function addService(){
+  var t=document.getElementById('m-title').value.trim();
+  var l=document.getElementById('m-loc').value.trim();
+  var ty=document.getElementById('m-type').value;
+  var p=document.getElementById('m-pri').value;
+  var n=document.getElementById('m-note').value.trim();
+  if(!t){toast('Please enter a service title!','error');return}
+  if(!l){toast('Please enter a location!','error');return}
+  var s={id:uid(),date:today(),status:'open',title:t,location:l,type:ty,priority:p,note:n,claimedBy:null,claimedAt:null,doneAt:null};
+  var a=lsSvc();a.push(s);svSvc(a);
+  pushAct('add','<strong>'+CU.name+'</strong> added: '+t);
+  closeModal();
+  ['m-title','m-loc','m-note'].forEach(function(id){document.getElementById(id).value=''});
+  toast('Job added: '+t,'success');renderAll();
+}
+
+function resetDay(){
+  if(!confirm('Reset all jobs for today? All claims and completions will be cleared.'))return;
+  var r=localStorage.getItem(KS);
+  var o=r?JSON.parse(r).filter(function(s){return s.date!==today()}):[];
+  localStorage.setItem(KS,JSON.stringify(o));
+  pushAct('add','<strong>Admin</strong> reset all services for today');
+  toast('Today services reset','warning');renderAll();
+}
+function refreshAll(){renderAll();toast('Data refreshed','info')}
+
+function toast(msg,type){
+  var icons={success:'&#9989;',warning:'&#9888;&#65039;',error:'&#10060;',info:'&#8505;&#65039;'};
+  var el=document.createElement('div');el.className='toast '+(type||'info');
+  el.innerHTML='<span>'+(icons[type]||icons.info)+'</span><span>'+msg+'</span>';
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(function(){el.remove()},4000);
+}
+
+window.addEventListener('storage',function(e){if([KS,KA,KL].indexOf(e.key)>=0)checkSync()});
+window.addEventListener('DOMContentLoaded',function(){var s=getEmp();if(s){CU=s;initApp()}});
+</script>
+</body>
+</html>

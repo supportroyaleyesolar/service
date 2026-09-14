@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: royal-eye-service-tracker
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: royal-eye-service-db
+          property: connectionString
+      - key: NODE_ENV
+        value: production
+
+databases:
+  - name: royal-eye-service-db
+    plan: free

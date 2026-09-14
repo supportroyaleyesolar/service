@@ -1,0 +1,19 @@
+{
+  "name": "royal-eye-service-tracker",
+  "version": "1.0.0",
+  "description": "Royal Eye Solar Service Tracker - Real-time Field Punch Board",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "add-employee": "node add-employee.js"
+  },
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "pg": "^8.11.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
