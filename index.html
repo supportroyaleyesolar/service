@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -650,21 +650,11 @@ function syncNow(showToast){
   });
 }
 
-// ── SEED INITIAL JOBS TO CLOUD (first run only) ──
+// ── SEED INITIAL JOBS TO CLOUD (first run only — starts EMPTY, Admin adds jobs manually) ──
 function seedCloud(){
   if(_cloudState.initialized)return;
-  var d=[
-    {title:'Inverter Overheating Repair',location:'Plot 12, Sector 4, Nehru Nagar',type:'inverter',priority:'high',note:'Gets hot after 2 hrs'},
-    {title:'Solar Panel Cleaning & Check',location:'House No. 45, Gandhi Colony',type:'panel',priority:'medium',note:'Annual maintenance due'},
-    {title:'Battery Replacement',location:'Villa 7, Green Park Extension',type:'battery',priority:'high',note:'12V not holding charge'},
-    {title:'Wiring Fault - Short Circuit',location:'Flat 301, Sunrise Apartments',type:'wiring',priority:'high',note:'Sparks near board reported'},
-    {title:'Panel Output Low - Inspection',location:'Shop No. 8, Main Market Road',type:'panel',priority:'medium',note:'Output dropped 40%'},
-    {title:'Inverter Display Not Working',location:'H.No. 22, Behind Bus Stand',type:'inverter',priority:'low',note:'LCD shows error code E5'},
-    {title:'New Battery Bank Setup',location:'Factory Gate, Industrial Area B',type:'battery',priority:'medium',note:'48V system - 4 batteries'},
-    {title:'Monthly System Health Check',location:'Bungalow 3, Civil Lines',type:'general',priority:'low',note:'AMC monthly checkup'}
-  ];
-  _cloudState.jobs=d.map(function(x){return Object.assign({id:uid(),date:today(),status:'open',claimedBy:null,claimedAt:null,doneAt:null},x)});
-  _cloudState.activity=[{id:uid(),date:today(),type:'add',msg:'<strong>System</strong> initialized Royal Eye Service Tracker',ts:Date.now()}];
+  _cloudState.jobs=[];
+  _cloudState.activity=[{id:uid(),date:today(),type:'add',msg:'<strong>System</strong> Royal Eye Service Tracker initialized — ready for Admin to add jobs',ts:Date.now()}];
   _cloudState.deletedJobIds=[];
   _cloudState.heartbeats={};
   _cloudState.initialized=true;
