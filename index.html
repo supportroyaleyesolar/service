@@ -460,21 +460,23 @@ var KS='res_svc_v4',KA='res_act_v4',KL='res_log_v4';
 var CU=null,AF='all';
 
 // ══════════════════════════════════════════════════
-//  CLOUD CONFIG — Royal Eye Solar shared backend
+//  MULTI-DEVICE CLOUD SYNC ENGINE
+//  Synchronizes GitHub Pages & all devices with Royal Eye cloud backend
 // ══════════════════════════════════════════════════
-var CLOUD_URL='https://supportroyaleyesolar.onrender.com/api/settings';
-var CLOUD_KEY='service_tracker_v5'; // bump version to force fresh cloud state
-var _cloudState={initialized:false,jobs:[],activity:[],deletedJobIds:[],heartbeats:{}};
-var _cloudEtag='';
-var _syncInFlight=false;
-var _syncInterval=null;
+var CLOUD_URL = 'https://supportroyaleyesolar.onrender.com/api/settings';
+var CLOUD_KEY = 'service_tracker_v6';
+
+var _cloudState = { jobs: [], activity: [], deletedJobIds: [], heartbeats: {}, lastUpdated: 0 };
+var _cloudVersion = '';
+var _syncInFlight = false;
+var _syncInterval = null;
 
 function today(){return new Date().toISOString().slice(0,10)}
 function fmtTime(ts){if(!ts)return'';return new Date(ts).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}
 function fmtDate(d){return new Date(d+'T00:00:00').toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
 
-// ── READ FROM CLOUD STATE (in-memory) ──
+// ── READ FROM SHARED STATE ──
 function lsSvc(){return _cloudState.jobs||[]}
 function lsAct(){return _cloudState.activity||[]}
 function onlineEmps(){
@@ -494,75 +496,95 @@ function setSyncStatus(state,msg){
 
 // ── FETCH CLOUD STATE ──
 function fetchCloud(callback){
-  if(_syncInFlight)return;
-  _syncInFlight=true;
+  if(_syncInFlight) return;
+  _syncInFlight = true;
   setSyncStatus('syncing','Syncing...');
-  fetch(CLOUD_URL,{cache:'no-cache'})
-    .then(function(r){return r.json()})
+
+  fetch(CLOUD_URL + '?_t=' + Date.now(), { cache: 'no-store' })
+    .then(function(r){
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      return r.json();
+    })
     .then(function(data){
-      _syncInFlight=false;
-      var st=data[CLOUD_KEY]||null;
+      _syncInFlight = false;
+      var st = data[CLOUD_KEY];
       if(!st){
-        // Cloud has no state yet — if we have local jobs, push them up; else fresh start
-        setSyncStatus('online','Cloud Connected');
-        if(callback)callback(false);
+        setSyncStatus('online','🟢 Live · ' + fmtTime(Date.now()));
+        if(callback) callback(false);
         return;
       }
-      var newEtag=JSON.stringify({jobs:(st.jobs||[]).length,lastUpdated:st.lastUpdated,act:(st.activity||[]).length});
-      if(newEtag!==_cloudEtag){
-        _cloudEtag=newEtag;
-        _cloudState=st;
-        // Purge any locally-deleted job IDs
-        var deleted=_cloudState.deletedJobIds||[];
-        if(deleted.length){
-          _cloudState.jobs=(_cloudState.jobs||[]).filter(function(j){return deleted.indexOf(j.id)<0});
-        }
-        if(callback)callback(true); // data changed
+
+      var version = (st.lastUpdated || 0) + '_' + (st.jobs || []).length + '_' + (st.activity || []).length;
+      if(version !== _cloudVersion){
+        _cloudVersion = version;
+        var deleted = st.deletedJobIds || [];
+        var cleanJobs = (st.jobs || []).filter(function(j){
+          return deleted.indexOf(j.id) < 0;
+        });
+
+        _cloudState.jobs = cleanJobs;
+        _cloudState.activity = st.activity || [];
+        _cloudState.deletedJobIds = deleted;
+        _cloudState.heartbeats = st.heartbeats || {};
+        _cloudState.lastUpdated = st.lastUpdated || Date.now();
+
+        setSyncStatus('online','🟢 Live · ' + fmtTime(Date.now()));
+        if(callback) callback(true);
       } else {
-        if(callback)callback(false);
+        if(st.heartbeats) _cloudState.heartbeats = st.heartbeats;
+        setSyncStatus('online','🟢 Live · ' + fmtTime(Date.now()));
+        if(callback) callback(false);
       }
-      setSyncStatus('online','🟢 Live · '+fmtTime(Date.now()));
     })
-    .catch(function(){
-      _syncInFlight=false;
-      setSyncStatus('offline','Offline (cached)');
-      if(callback)callback(false);
+    .catch(function(err){
+      _syncInFlight = false;
+      setSyncStatus('offline','Syncing with server...');
+      if(callback) callback(false);
     });
 }
 
-// ── PUSH CLOUD STATE ──
-function pushCloud(onDone){
-  setSyncStatus('syncing','Saving...');
-  var payload={};
-  payload[CLOUD_KEY]=_cloudState;
-  _cloudState.lastUpdated=Date.now();
-  fetch(CLOUD_URL,{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify(payload)
-  })
-  .then(function(r){return r.json()})
-  .then(function(){
-    setSyncStatus('online','🟢 Saved · '+fmtTime(Date.now()));
-    if(onDone)onDone();
-  })
-  .catch(function(){
-    setSyncStatus('offline','Save failed — retrying');
-    setTimeout(function(){pushCloud(onDone)},4000);
-  });
-}
+// ── SAFE ATOMIC CLOUD MUTATION (prevents devices overwriting each other) ──
+function mutateCloud(mutator, onDone){
+  setSyncStatus('syncing','Updating...');
 
-// ── WRITE JOBS TO CLOUD ──
-function svSvc(jobs){
-  _cloudState.jobs=jobs;
-  pushCloud(renderAll);
-}
+  fetch(CLOUD_URL + '?_t=' + Date.now(), { cache: 'no-store' })
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      var st = data[CLOUD_KEY] || { jobs: [], activity: [], deletedJobIds: [], heartbeats: {} };
+      if(!st.jobs) st.jobs = [];
+      if(!st.activity) st.activity = [];
+      if(!st.deletedJobIds) st.deletedJobIds = [];
+      if(!st.heartbeats) st.heartbeats = {};
 
-// ── WRITE ACTIVITY TO CLOUD ──
-function pushAct(type,msg){
-  var act=_cloudState.activity||[];
-  act.unshift({id:uid(),date:today(),type:type,msg:msg,ts:Date.now()});
-  _cloudState.activity=act.slice(0,200);
+      var success = mutator(st);
+      if(success === false){
+        renderAll();
+        return;
+      }
+
+      st.lastUpdated = Date.now();
+      _cloudState = st;
+
+      var payload = {};
+      payload[CLOUD_KEY] = st;
+
+      return fetch(CLOUD_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(){
+        _cloudVersion = (st.lastUpdated || 0) + '_' + st.jobs.length + '_' + st.activity.length;
+        setSyncStatus('online','🟢 Saved · ' + fmtTime(Date.now()));
+        renderAll();
+        if(onDone) onDone();
+      });
+    })
+    .catch(function(err){
+      setSyncStatus('offline','Sync error — retrying');
+      setTimeout(function(){ mutateCloud(mutator, onDone); }, 2500);
+    });
 }
 
 // ── EMPLOYEE SESSION ──
@@ -570,18 +592,33 @@ function getEmp(){var id=sessionStorage.getItem('eid');return id&&EMP[id]?Object
 function setEmp(id){sessionStorage.setItem('eid',id)}
 function clrEmp(){sessionStorage.removeItem('eid')}
 
-// ── HEARTBEAT (online status) ──
+// ── HEARTBEAT (online presence across all devices) ──
 function keepAlive(){
-  var id=sessionStorage.getItem('eid');
-  if(!id)return;
-  var hb=_cloudState.heartbeats||{};
-  hb[id]=Date.now();
-  _cloudState.heartbeats=hb;
-  // push silently (no render needed just for heartbeat)
-  var payload={};
-  payload[CLOUD_KEY]=_cloudState;
-  _cloudState.lastUpdated=Date.now();
-  fetch(CLOUD_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).catch(function(){});
+  var id = sessionStorage.getItem('eid');
+  if(!id) return;
+
+  fetch(CLOUD_URL + '?_t=' + Date.now(), { cache: 'no-store' })
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      var st = data[CLOUD_KEY];
+      if(!st) return;
+      if(!st.heartbeats) st.heartbeats = {};
+      st.heartbeats[id] = Date.now();
+
+      var cutoff = Date.now() - 15 * 60 * 1000;
+      for(var k in st.heartbeats){
+        if(st.heartbeats[k] < cutoff) delete st.heartbeats[k];
+      }
+
+      var payload = {};
+      payload[CLOUD_KEY] = st;
+      fetch(CLOUD_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).catch(function(){});
+    })
+    .catch(function(){});
 }
 
 // ── LOGIN / LOGOUT ──
@@ -590,13 +627,19 @@ function doLogin(){
   var pin=document.getElementById('pin-input').value;
   var er=document.getElementById('login-error');er.style.display='none';
   if(!id){er.textContent='Please select your name.';er.style.display='block';return}
-  if(PINS[id]!==pin){er.textContent='Incorrect PIN. Try again.';er.style.display='block';return}
-  setEmp(id);CU=Object.assign({id:id},EMP[id]);initApp();
+
+  if(PINS[id]!==pin){
+    er.textContent='Incorrect PIN. Try again.';er.style.display='block';
+    return;
+  }
+
+  setEmp(id);
+  CU=Object.assign({id:id},EMP[id]);
+  initApp();
 }
+
 function doLogout(){
-  // remove heartbeat
   var id=sessionStorage.getItem('eid');
-  if(id&&_cloudState.heartbeats){delete _cloudState.heartbeats[id];pushCloud(null)}
   clrEmp();CU=null;
   if(_syncInterval){clearInterval(_syncInterval);_syncInterval=null;}
   document.getElementById('login-page').style.display='flex';
@@ -618,47 +661,36 @@ function initApp(){
   var dd=document.getElementById('date-display');
   if(dd)dd.textContent=fmtDate(today());
   setSyncStatus('syncing','Connecting...');
-  // Initial cloud load
-  fetchCloud(function(changed){
-    if(!_cloudState.initialized){
-      // First ever run — seed initial jobs to cloud
-      seedCloud();
-    } else {
-      renderAll();
+
+  // Initial load
+  fetchCloud(function(){
+    renderAll();
+  });
+
+  // Heartbeat immediately + every 25s
+  keepAlive();
+  setInterval(keepAlive, 25000);
+
+  // Poll cloud state every 3 seconds for instant multi-device sync
+  if(_syncInterval) clearInterval(_syncInterval);
+  _syncInterval = setInterval(cloudPoll, 3000);
+}
+
+// ── BACKGROUND POLL (picks up changes from all phones & computers) ──
+function cloudPoll(){
+  fetchCloud(function(success){
+    if(success) renderAll();
+  });
+}
+
+// ── MANUAL SYNC BUTTON ──
+function syncNow(showToast){
+  fetchCloud(function(success){
+    renderAll();
+    if(showToast){
+      toast('Synced live with server','success');
     }
   });
-  // Heartbeat immediately + then every 30s
-  keepAlive();
-  // Poll cloud every 3.5 seconds
-  if(_syncInterval)clearInterval(_syncInterval);
-  _syncInterval=setInterval(cloudPoll,3500);
-  setInterval(keepAlive,30000);
-}
-
-// ── CLOUD POLL (background check for changes from other devices) ──
-function cloudPoll(){
-  fetchCloud(function(changed){
-    if(changed)renderAll();
-  });
-}
-
-// ── MANUAL SYNC ──
-function syncNow(showToast){
-  fetchCloud(function(changed){
-    renderAll();
-    if(showToast)toast('Synced with cloud','success');
-  });
-}
-
-// ── SEED INITIAL JOBS TO CLOUD (first run only — starts EMPTY, Admin adds jobs manually) ──
-function seedCloud(){
-  if(_cloudState.initialized)return;
-  _cloudState.jobs=[];
-  _cloudState.activity=[{id:uid(),date:today(),type:'add',msg:'<strong>System</strong> Royal Eye Service Tracker initialized — ready for Admin to add jobs',ts:Date.now()}];
-  _cloudState.deletedJobIds=[];
-  _cloudState.heartbeats={};
-  _cloudState.initialized=true;
-  pushCloud(renderAll);
 }
 
 // ── RENDER ALL ──
@@ -690,14 +722,14 @@ function drawSvcs(){
   if(AF==='open')a=a.filter(function(s){return s.status==='open'});
   else if(AF==='claimed')a=a.filter(function(s){return s.status==='claimed'});
   else if(AF==='done')a=a.filter(function(s){return s.status==='done'});
-  else if(AF==='mine')a=a.filter(function(s){return s.claimedBy===CU.id});
+  else if(AF==='mine')a=a.filter(function(s){return String(s.claimedBy)===String(CU.id)});
   var g=document.getElementById('services-grid');
   if(!a.length){g.innerHTML='<div class="empty-state"><div class="ei">&#128269;</div><h3>No jobs found</h3><p>'+(AF==='mine'?'You have not claimed any jobs yet.':'No jobs match this filter.')+'</p></div>';return}
   g.innerHTML=a.map(buildCard).join('');
 }
 
 function buildCard(s){
-  var tc=TC[s.type]||TC.general,iM=s.claimedBy===CU.id,isA=CU.id==='admin';
+  var tc=TC[s.type]||TC.general,iM=String(s.claimedBy)===String(CU.id),isA=CU.id==='admin';
   var sp='',sc='';
   if(s.status==='open'){sp='<span class="status-pill sp-open">Open</span>';sc='st-open'}
   if(s.status==='claimed'){sp='<span class="status-pill sp-claimed">In Progress</span>';sc='st-claimed'}
@@ -733,67 +765,133 @@ function buildCard(s){
     '</div>'+abox+'<div class="card-actions">'+acts+'</div></div>';
 }
 
-// ── ADMIN: DELETE JOB (propagates to all devices via tombstone) ──
+// ── ADMIN: DELETE JOB ──
 function deleteJob(id){
   if(!CU||CU.id!=='admin'){toast('Permission denied: Only Admin can delete service records!','error');return}
   var a=lsSvc(),s=a.find(function(x){return x.id===id});
   if(!s)return;
   if(!confirm('Admin Action: Permanently delete this service?\n\n"'+s.title+'" at '+s.location+'\n\nAll employees will see this deletion immediately.'))return;
-  // Remove from jobs array
-  _cloudState.jobs=a.filter(function(x){return x.id!==id});
-  // Add to tombstone deletedJobIds so no device can restore it
-  var del=_cloudState.deletedJobIds||[];
-  if(del.indexOf(id)<0)del.push(id);
-  _cloudState.deletedJobIds=del;
-  pushAct('release','<strong>Admin ('+CU.name+')</strong> deleted: '+s.title);
-  toast('Deleted — all devices will update instantly','warning');
-  pushCloud(renderAll);
+
+  mutateCloud(function(st){
+    st.jobs = (st.jobs || []).filter(function(x){ return x.id !== id; });
+    if(!st.deletedJobIds) st.deletedJobIds = [];
+    if(st.deletedJobIds.indexOf(id) < 0) st.deletedJobIds.push(id);
+    st.activity = st.activity || [];
+    st.activity.unshift({
+      id: uid(),
+      date: today(),
+      type: 'release',
+      msg: '<strong>Admin ('+CU.name+')</strong> deleted: ' + s.title,
+      ts: Date.now()
+    });
+  }, function(){
+    toast('Deleted — updated on all devices','warning');
+  });
 }
 
 // ── PUNCH IN ──
 function punchIn(id){
-  var a=lsSvc(),i=a.findIndex(function(s){return s.id===id});
-  if(i<0){toast('Job not found! Refreshing...','error');syncNow(false);return}
-  if(a[i].status!=='open'){toast('This job was just claimed by someone else!','warning');syncNow(false);return}
-  a[i].status='claimed';a[i].claimedBy=CU.id;a[i].claimedAt=Date.now();
-  pushAct('punch','<strong>'+CU.name+'</strong> punched in for: '+a[i].title);
-  toast('You claimed: '+a[i].title,'success');
-  svSvc(a);
+  mutateCloud(function(st){
+    var idx = (st.jobs || []).findIndex(function(x){ return x.id === id; });
+    if(idx < 0){
+      toast('Job not found! Refreshing...','error');
+      return false;
+    }
+    var job = st.jobs[idx];
+    if(job.status === 'claimed' && job.claimedBy && job.claimedBy !== CU.id){
+      var takenBy = EMP[job.claimedBy] ? EMP[job.claimedBy].name : 'another technician';
+      toast('This job was just claimed by ' + takenBy + '!','warning');
+      return false;
+    }
+
+    job.status = 'claimed';
+    job.claimedBy = CU.id;
+    job.claimedAt = Date.now();
+
+    st.activity = st.activity || [];
+    st.activity.unshift({
+      id: uid(),
+      date: today(),
+      type: 'punch',
+      msg: '<strong>' + CU.name + '</strong> punched in for: ' + job.title,
+      ts: Date.now()
+    });
+    toast('You claimed: ' + job.title, 'success');
+  });
 }
 
 // ── MARK DONE ──
 function markDone(id){
-  var a=lsSvc(),i=a.findIndex(function(s){return s.id===id});if(i<0)return;
-  a[i].status='done';a[i].doneAt=Date.now();
-  pushAct('complete','<strong>'+CU.name+'</strong> completed: '+a[i].title);
-  toast('Completed: '+a[i].title,'success');
-  svSvc(a);
+  mutateCloud(function(st){
+    var idx = (st.jobs || []).findIndex(function(x){ return x.id === id; });
+    if(idx < 0) return false;
+    var job = st.jobs[idx];
+    job.status = 'done';
+    job.doneAt = Date.now();
+
+    st.activity = st.activity || [];
+    st.activity.unshift({
+      id: uid(),
+      date: today(),
+      type: 'complete',
+      msg: '<strong>' + CU.name + '</strong> completed: ' + job.title,
+      ts: Date.now()
+    });
+    toast('Completed: ' + job.title, 'success');
+  });
 }
 
 // ── RELEASE JOB ──
 function releaseJob(id){
-  var a=lsSvc(),i=a.findIndex(function(s){return s.id===id});if(i<0)return;
-  var t=a[i].title;a[i].status='open';a[i].claimedBy=null;a[i].claimedAt=null;
-  pushAct('release','<strong>'+CU.name+'</strong> released: '+t);
-  toast('Released: '+t,'warning');
-  svSvc(a);
+  mutateCloud(function(st){
+    var idx = (st.jobs || []).findIndex(function(x){ return x.id === id; });
+    if(idx < 0) return false;
+    var job = st.jobs[idx];
+    job.status = 'open';
+    job.claimedBy = null;
+    job.claimedAt = null;
+
+    st.activity = st.activity || [];
+    st.activity.unshift({
+      id: uid(),
+      date: today(),
+      type: 'release',
+      msg: '<strong>' + CU.name + '</strong> released: ' + job.title,
+      ts: Date.now()
+    });
+    toast('Released: ' + job.title, 'warning');
+  });
 }
 
 // ── REOPEN JOB ──
 function reopenJob(id){
-  var a=lsSvc(),i=a.findIndex(function(s){return s.id===id});if(i<0)return;
-  a[i].status='open';a[i].claimedBy=null;a[i].claimedAt=null;a[i].doneAt=null;
-  pushAct('release','<strong>'+CU.name+'</strong> reopened: '+a[i].title);
-  toast('Job reopened — visible to all now','info');
-  svSvc(a);
+  mutateCloud(function(st){
+    var idx = (st.jobs || []).findIndex(function(x){ return x.id === id; });
+    if(idx < 0) return false;
+    var job = st.jobs[idx];
+    job.status = 'open';
+    job.claimedBy = null;
+    job.claimedAt = null;
+    job.doneAt = null;
+
+    st.activity = st.activity || [];
+    st.activity.unshift({
+      id: uid(),
+      date: today(),
+      type: 'release',
+      msg: '<strong>' + CU.name + '</strong> reopened: ' + job.title,
+      ts: Date.now()
+    });
+    toast('Job reopened — visible to all now', 'info');
+  });
 }
 
-// ── DRAW EMPLOYEES (online status from cloud heartbeats) ──
+// ── DRAW EMPLOYEES (online status from server heartbeats) ──
 function drawEmps(){
   var svcs=lsSvc(),on=onlineEmps(),el=document.getElementById('emp-list');
   el.innerHTML=['1','2','3','4','5'].map(function(id){
     var e=EMP[id],isOn=on.indexOf(id)>=0;
-    var job=svcs.find(function(s){return s.claimedBy===id&&s.status==='claimed'});
+    var job=svcs.find(function(s){return String(s.claimedBy)===id&&s.status==='claimed'});
     var ec=isOn?(job?'ec-busy':'ec-active'):'ec-offline';
     var ac=isOn?(job?'ea-busy':'ea-on'):'ea-off';
     var st=isOn?(job?'Working: '+job.title.slice(0,20)+'&hellip;':'Available'):'Offline';
@@ -830,27 +928,61 @@ function addService(){
   var n=document.getElementById('m-note').value.trim();
   if(!t){toast('Please enter a service title!','error');return}
   if(!l){toast('Please enter a location!','error');return}
-  var s={id:uid(),date:today(),status:'open',title:t,location:l,type:ty,priority:p,note:n,claimedBy:null,claimedAt:null,doneAt:null};
-  var a=lsSvc();a.push(s);
-  pushAct('add','<strong>'+CU.name+'</strong> added: '+t);
-  closeModal();
-  ['m-title','m-loc','m-note'].forEach(function(id){document.getElementById(id).value=''});
-  toast('Job added — all devices will see it now','success');
-  svSvc(a);
+
+  var newJob = {
+    id: uid(),
+    date: today(),
+    status: 'open',
+    title: t,
+    location: l,
+    type: ty,
+    priority: p,
+    note: n,
+    claimedBy: null,
+    claimedAt: null,
+    doneAt: null
+  };
+
+  mutateCloud(function(st){
+    st.jobs = st.jobs || [];
+    st.jobs.push(newJob);
+    st.activity = st.activity || [];
+    st.activity.unshift({
+      id: uid(),
+      date: today(),
+      type: 'add',
+      msg: '<strong>' + CU.name + '</strong> added: ' + t,
+      ts: Date.now()
+    });
+    return true;
+  }, function(){
+    closeModal();
+    ['m-title','m-loc','m-note'].forEach(function(id){document.getElementById(id).value=''});
+    toast('Job added — all devices will see it now','success');
+  });
 }
 
 // ── ADMIN: RESET TODAY'S JOBS ──
 function resetDay(){
   if(!confirm('Admin: Clear ALL jobs for today from every device?\n\nThis cannot be undone.'))return;
-  var kept=lsSvc().filter(function(s){return s.date!==today()});
-  // Tombstone today's job IDs
-  var todayIds=lsSvc().filter(function(s){return s.date===today()}).map(function(s){return s.id});
-  var del=_cloudState.deletedJobIds||[];
-  todayIds.forEach(function(id){if(del.indexOf(id)<0)del.push(id)});
-  _cloudState.deletedJobIds=del;
-  pushAct('add','<strong>Admin</strong> reset all jobs for today — all devices updated');
-  toast('Today\'s jobs cleared on ALL devices','warning');
-  svSvc(kept);
+  mutateCloud(function(st){
+    var todayIds = (st.jobs || []).filter(function(s){ return s.date === today(); }).map(function(s){ return s.id; });
+    st.jobs = (st.jobs || []).filter(function(s){ return s.date !== today(); });
+    if(!st.deletedJobIds) st.deletedJobIds = [];
+    todayIds.forEach(function(id){
+      if(st.deletedJobIds.indexOf(id) < 0) st.deletedJobIds.push(id);
+    });
+    st.activity = st.activity || [];
+    st.activity.unshift({
+      id: uid(),
+      date: today(),
+      type: 'release',
+      msg: '<strong>Admin</strong> reset all jobs for today — all devices updated',
+      ts: Date.now()
+    });
+  }, function(){
+    toast('Today\'s jobs cleared on ALL devices','warning');
+  });
 }
 
 function toast(msg,type){
@@ -861,7 +993,7 @@ function toast(msg,type){
   setTimeout(function(){el.remove()},4000);
 }
 
-// Sync on tab focus / visibility restore (employee picks up phone)
+// Sync on tab focus / visibility restore (e.g. employee unlocks phone)
 window.addEventListener('visibilitychange',function(){if(!document.hidden&&CU)syncNow(false)});
 window.addEventListener('focus',function(){if(CU)syncNow(false)});
 
