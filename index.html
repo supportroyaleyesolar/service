@@ -93,26 +93,11 @@
       transition:all .2s;font-family:'Inter',sans-serif}
     .btn-logout:hover{background:rgba(255,77,109,0.22)}
 
-    /* ── CLOUD SYNC BADGE ── */
-    .sync-badge{display:inline-flex;align-items:center;gap:8px;padding:7px 16px;
-      background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:40px;
-      font-size:12px;font-weight:600;cursor:pointer;transition:all .25s ease;user-select:none}
-    .sync-badge:hover{background:rgba(255,255,255,0.08);border-color:var(--solar-gold);transform:translateY(-1px)}
-    .sync-dot{width:9px;height:9px;border-radius:50%;background:var(--warning);transition:background .3s,box-shadow .3s}
-    .sync-badge.online{border-color:rgba(6,214,160,0.35);color:#d2f9ee}
-    .sync-badge.online .sync-dot{background:var(--success);box-shadow:0 0 10px var(--success)}
-    .sync-badge.syncing{border-color:rgba(245,166,35,0.45);color:var(--solar-gold)}
-    .sync-badge.syncing .sync-dot{background:var(--solar-gold);box-shadow:0 0 10px var(--solar-gold);animation:syncPulse 0.9s infinite}
-    .sync-badge.offline{border-color:rgba(255,77,109,0.35);color:var(--text-secondary)}
-    .sync-badge.offline .sync-dot{background:var(--danger);box-shadow:0 0 8px var(--danger)}
-    @keyframes syncPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.4);opacity:0.4}}
-
     .date-bar{display:flex;align-items:center;justify-content:space-between;padding:14px 28px;
       border-bottom:1px solid var(--border);background:rgba(255,255,255,0.02);flex-wrap:wrap;gap:12px}
     .date-display{display:flex;align-items:center;gap:10px}
     .date-dot{width:10px;height:10px;border-radius:50%;background:var(--success);
-      box-shadow:0 0 8px var(--success);animation:blink 2s ease-in-out infinite}
-    @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+      box-shadow:0 0 8px var(--success)}
     .date-text{font-size:14px;font-weight:600}
     .date-sub{font-size:12px;color:var(--text-secondary)}
     .date-actions{display:flex;gap:10px;flex-wrap:wrap}
@@ -318,10 +303,6 @@
       <span class="brand-name">Royal Eye Solar &mdash; Service Tracker</span>
     </div>
     <div class="topbar-right">
-      <div class="sync-badge syncing" id="sync-badge" onclick="syncNow(true)" title="Click to sync immediately with Royal Eye cloud server">
-        <span class="sync-dot" id="sync-dot"></span>
-        <span class="sync-text" id="sync-text">Cloud Syncing...</span>
-      </div>
       <div class="user-badge">
         <div class="user-avatar" id="top-av">A</div>
         <div>
@@ -485,14 +466,8 @@ function onlineEmps(){
   return Object.keys(hb).filter(function(id){return hb[id]>cutoff});
 }
 
-// ── SYNC STATUS BADGE ──
-function setSyncStatus(state,msg){
-  var badge=document.getElementById('sync-badge');
-  var text=document.getElementById('sync-text');
-  if(!badge||!text)return;
-  badge.className='sync-badge '+state;
-  text.textContent=msg;
-}
+// ── SILENT BACKGROUND SYNC ──
+function setSyncStatus(state,msg){}
 
 // ── FETCH CLOUD STATE ──
 function fetchCloud(callback){
